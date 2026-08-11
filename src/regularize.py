@@ -302,6 +302,26 @@ def _clicar_todos_expandir(driver, seletor_css: str, logger: Logger, rotulo: str
     return total
 
 
+def _clicar_legendas_extintas(driver, logger: Logger) -> int:
+    """Só no Relatório Consolidado: grupos de dívida "Extinta" ficam num
+    painel próprio (legend clicável, ver selectors.XPATH_LEGENDA_EXTINTA),
+    separado do IMG_EXPANDIR_TODAS_INSCRICOES — clica em cada um antes de
+    seguir, senão essas inscrições saem de fora do PDF. Passe único (a
+    legend não some do DOM ao clicar, só alterna o painel — diferente de
+    _clicar_todos_expandir, que depende do elemento sumir da lista)."""
+    legendas = driver.find_elements(By.XPATH, selectors.XPATH_LEGENDA_EXTINTA)
+    for legenda in legendas:
+        _clicar(driver, legenda)
+        try:
+            WebDriverWait(driver, 5).until(
+                lambda d: d.execute_script("return document.getAnimations().length") == 0
+            )
+        except TimeoutException:
+            pass
+    logger.log("legendas_extintas_clicadas", total=len(legendas))
+    return len(legendas)
+
+
 def gerar_relatorio_consolidado(driver, cnpj: str, timeout_s: float, logger: Logger) -> Path:
     """FASE 2 — Relatório Consolidado (A)."""
     ir_para_consulta_dividas(driver, timeout_s, logger)
@@ -331,6 +351,8 @@ def gerar_relatorio_consolidado(driver, cnpj: str, timeout_s: float, logger: Log
     )
     total_fieldsets = len(driver.find_elements(By.TAG_NAME, "fieldset"))
     logger.log("relatorio_gerado", total_fieldsets=total_fieldsets)
+
+    _clicar_legendas_extintas(driver, logger)
 
     total_expandido = _clicar_todos_expandir(
         driver, selectors.IMG_EXPANDIR_TODAS_INSCRICOES, logger, "todas_inscricoes"

@@ -52,6 +52,11 @@ XPATH_BTN_GERAR_RELATORIO = '//button[contains(., "Gerar Relatório")]'
 XPATH_BTN_EXPORTAR = '//button[contains(., "Exportar")]'
 XPATH_BTN_IMPRIMIR = '//button[contains(., "Imprimir")]'
 IMG_EXPANDIR_TODAS_INSCRICOES = 'img[alt="Exibir o detalhamento de todas as inscrições"]'
+# Só no Relatório Consolidado (FASE 2): grupos de dívida "Extinta" ficam
+# num painel próprio (legend clicável), separado do
+# IMG_EXPANDIR_TODAS_INSCRICOES — precisa clicar nele também antes de
+# exportar, senão essas inscrições saem de fora do PDF.
+XPATH_LEGENDA_EXTINTA = '//legend[contains(normalize-space(.), "Extinta")]'
 
 ABAS = {
     "tributaria": "aba_TRIBUTARIA_DEMAIS_DEBITOS-link",
