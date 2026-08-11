@@ -1,0 +1,11 @@
+{
+  "name": "ecac-regularize",
+  "displayName": "e-CAC + Regularize (PGFN)",
+  "description": "Login por certificado digital A1 no gov.br/e-CAC e geração dos relatórios de dívida ativa no Regularize (PGFN) para um CNPJ.",
+  "version": "1.0.0",
+  "author": {
+    "name": "Auster Contabilidade",
+    "email": "ti@austercontabil.com.br"
+  },
+  "keywords": ["gov.br", "e-cac", "regularize", "pgfn", "certificado-digital", "selenium"]
+}

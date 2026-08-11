@@ -176,13 +176,11 @@ def autenticar_e_trocar_perfil(driver, cnpj: str, timeout_s: float, logger: Logg
     RUNBOOK.md). Esta função NÃO navega mais pro Regularize; isso agora é
     responsabilidade de quem chamar, no driver headless."""
     print(
-        "\nAba padrão pronta. Faça manualmente, no seu ritmo:\n"
-        f"  1. Vá para {selectors.URL_GOV_BR} → Entrar → Seu certificado digital "
-        "(resolva o captcha se aparecer).\n"
-        f"  2. Abra {selectors.URL_ECAC} numa aba.\n"
-        '  3. Clique em "Alterar perfil de acesso".\n'
-        f'  4. No campo "Procurador de pessoa jurídica - CNPJ", digite {cnpj}.\n'
-        '  5. Clique em "Alterar" e resolva o captcha se aparecer.\n'
+        "\nFaça manualmente:\n"
+        f"  1. Vá para {selectors.URL_ECAC} e logue com o certificado digital.\n"
+        f'  2. Clique em "Alterar perfil de acesso".\n'
+        f'  3. No campo "Procurador de pessoa jurídica - CNPJ", digite {cnpj}.\n'
+        '  4. Clique em "Alterar".\n'
         "  (Login e troca de perfil são sempre manuais — automatizar o clique "
         "do certificado tem corrida, e a troca de perfil é bloqueada como "
         "acesso automatizado pela Receita.)\n"
