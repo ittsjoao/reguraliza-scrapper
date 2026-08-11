@@ -243,16 +243,21 @@ def _logar_via_govbr(driver, timeout_s: float) -> None:
     espera.until(pagina_carregada)
 
 
-def abrir_navegador_com_certificado(certificado: dict, config: dict):
+def abrir_navegador_com_certificado(certificado: dict, config: dict, headless: bool | None = None):
     """Abre o Chrome via undetected-chromedriver com seleção automática do
     certificado escolhido (sem popup nativo) — NÃO navega nem loga em
     lugar nenhum, fica na aba padrão (nova guia em branco). Retorna o
     driver (e a flag de policy, pra quem chamou decidir quando remover) —
     quem chamar é responsável por fechar o driver.
+
+    `headless=None` usa `config.navegador.headless`; passe True/False pra
+    sobrescrever — a FASE 1 do Regularize (login manual) precisa sempre de
+    um navegador visível, independente do que estiver no config.yaml.
     """
     import undetected_chromedriver as uc
 
-    headless = config["navegador"]["headless"]
+    if headless is None:
+        headless = config["navegador"]["headless"]
     timeout_s = config["navegador"]["timeout_ms"] / 1000
 
     # pattern "*" (não travado no host de destino): o clique em "entrar com
@@ -281,6 +286,34 @@ def abrir_navegador_com_certificado(certificado: dict, config: dict):
     driver = uc.Chrome(options=options, version_main=_versao_major_chrome())
     driver.set_page_load_timeout(timeout_s)
     return driver, politica_aplicada
+
+
+def abrir_navegador_com_cookies(cookies: list[dict], config: dict):
+    """Sobe um Chrome headless sem seleção de certificado nenhuma e injeta
+    cookies de uma sessão já autenticada manualmente num outro navegador
+    (ver RUNBOOK.md, seção "sessão headless via cookies") — não repete
+    login nem clique nenhum, só reaproveita a sessão. Retorna o driver já
+    navegado (de novo) pro e-CAC; quem chamar é responsável por fechá-lo.
+
+    Cookies do tipo TS* (F5 BIG-IP) costumam prender o IP de origem — só
+    funciona rodando da mesma rede/IP de onde os cookies foram capturados,
+    e são cookies de sessão (sem `expiry`), então cada execução precisa da
+    FASE 1 manual de novo pra gerar cookies novos.
+    """
+    import undetected_chromedriver as uc
+
+    timeout_s = config["navegador"]["timeout_ms"] / 1000
+    options = uc.ChromeOptions()
+    options.add_argument("--headless=new")
+
+    driver = uc.Chrome(options=options, version_main=_versao_major_chrome())
+    driver.set_page_load_timeout(timeout_s)
+
+    driver.get(selectors.URL_ECAC)
+    for cookie in cookies:
+        driver.add_cookie(cookie)
+    driver.get(selectors.URL_ECAC)
+    return driver
 
 
 def abrir_navegador_autenticado(certificado: dict, config: dict):

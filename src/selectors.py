@@ -32,6 +32,10 @@ URL_REGULARIZE_CONSULTA_DIVIDAS = "https://www.regularize.pgfn.gov.br/consultaDi
 XPATH_BTN_ALTERAR_PERFIL_ECAC = '//*[contains(text(), "Alterar perfil de acesso")]'
 INPUT_CNPJ_PERFIL = "#txtNIPapel2"
 BTN_ALTERAR_PERFIL = 'input.submit[value="Alterar"]'
+# os 3 botões "Alterar" não têm id nem fieldset ancestor comum — o certo
+# pra #txtNIPapel2 é o primeiro que aparece DEPOIS dele no DOM (ver
+# RUNBOOK.md).
+XPATH_BTN_ALTERAR_APOS_CNPJ = '//input[@id="txtNIPapel2"]/following::input[@value="Alterar"][1]'
 
 # Caminho pra entrar no Regularize a partir do e-CAC já autenticado — em
 # vez de navegar direto pra URL_REGULARIZE_CONSULTA_DIVIDAS (a SPA às

@@ -193,6 +193,61 @@ guarda de rota da SPA não reconhecer a sessão a tempo. `ir_para_consulta_divid
 toda navegação subsequente pra `/consultaDividas` (enumeração, cada
 relatório detalhado, reabertura de aba).
 
+**A partir de 2026-08-11, `entrar_no_regularize_via_ecac` roda num
+segundo navegador (headless), não mais no mesmo navegador do login
+manual** — ver seção seguinte.
+
+## Regularize — sessão headless via cookies (a partir da FASE 2)
+
+Confirmado ao vivo em 2026-08-11 (`teste_cookies_headless.py`, cookies
+exportados de uma aba já autenticada no e-CAC): subir um Chrome headless
+via `undetected_chromedriver`, navegar pra `selectors.URL_ECAC`, injetar
+os cookies com `driver.add_cookie(...)` um a um e navegar pro e-CAC de
+novo é suficiente pra herdar a sessão autenticada — achou "Alterar perfil
+de acesso" na página, sem disparar o bloqueio de "acesso automatizado".
+
+**Por que isso não viola a regra de FASE 1 manual:** nenhum login nem
+clique de troca de perfil é automatizado — a sessão continua sendo
+autenticada por um humano, só que num navegador diferente do que roda o
+resto do fluxo.
+
+**Arquitetura atual (`main.executar_regularize`):**
+1. Abre navegador #1 (`fluxo.abrir_navegador_com_certificado(..., headless=False)` —
+   sempre visível, ignora `config.navegador.headless`) e
+   `regularize.autenticar_e_trocar_perfil` pausa em `input()` pro operador
+   fazer login + troca de perfil manualmente, exatamente como antes.
+2. Ao confirmar, a função captura `driver.get_cookies()` da aba do e-CAC e
+   retorna a lista — `main.py` fecha o navegador #1 e remove a policy de
+   certificado (não é mais necessária).
+3. Abre navegador #2 (`fluxo.abrir_navegador_com_cookies`, sempre
+   headless) e injeta os cookies capturados.
+4. `regularize.confirmar_sessao_headless_autenticada` confere se "Alterar
+   perfil de acesso" aparece antes de seguir — se não aparecer, levanta
+   erro (cookies expirados ou presos a outro IP) em vez de continuar e
+   gerar relatórios vazios/errados em silêncio.
+5. Segue o fluxo normal (`entrar_no_regularize_via_ecac`, FASE 2, FASE 3)
+   no navegador #2.
+
+**Riscos conhecidos, sem workaround:**
+- Os cookies `TS*` (F5 BIG-IP) costumam embutir o IP de origem — só
+  funciona rodando da mesma rede/IP de onde a FASE 1 manual aconteceu.
+  Não adianta capturar os cookies numa máquina e rodar o headless noutra.
+- São cookies de sessão (sem `expiry`) — expiram, então cada execução
+  precisa repetir a FASE 1 manual pra gerar cookies novos. Isso não vira
+  uma automação "rode a qualquer hora sem supervisão": o operador ainda
+  faz login + troca de perfil toda vez, só não fica esperando o resto do
+  fluxo (PDFs) numa janela visível.
+- `config.navegador.headless` agora só afeta o fluxo simples de
+  `python -m src.main` (sem `--regularize`) — no fluxo Regularize os dois
+  navegadores têm headless fixo (visível no #1, headless no #2),
+  independente do que estiver no `config.yaml`.
+
+**`--limit N`** (`python -m src.main --regularize <CNPJ> --limit N`) trunca
+a quantidade de relatórios detalhados gerados na FASE 3, preservando a
+ordem das abas — útil pra validar rápido que a sessão headless via
+cookies está gerando PDFs corretos antes de rodar tudo (ex.: `--limit 10`
+antes de deixar rodar as ~77 inscrições completas).
+
 ## Regularize — `_clicavel_no_shadow` derrubava o login com StaleElementReferenceException
 
 `WebDriverWait.until()` só re-tenta sozinho em `NoSuchElementException`

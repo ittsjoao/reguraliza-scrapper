@@ -13,7 +13,7 @@ def carregar_config() -> dict:
         return yaml.safe_load(f)
 
 
-def _escolher_certificado_ou_sair() -> dict | None:
+def _escolher_certificado_ou_sair(config: dict) -> dict | None:
     certificados = fluxo.listar_certificados()
     if not certificados:
         print(
@@ -21,11 +21,32 @@ def _escolher_certificado_ou_sair() -> dict | None:
             "encontrado no Windows Certificate Store."
         )
         return None
+
+    cn_padrao = config.get("certificado", {}).get("cn_padrao")
+    if cn_padrao:
+        casados = [c for c in certificados if cn_padrao.upper() in c["cn"].upper()]
+        if len(casados) == 1:
+            print(f"Certificado selecionado automaticamente: {casados[0]['cn']}")
+            return casados[0]
+
     return fluxo.escolher_certificado(certificados)
 
 
-def executar_regularize(cnpj: str, config: dict) -> None:
-    escolhido = _escolher_certificado_ou_sair()
+def _limitar_enumeracao(enumeracao: dict[str, list[str]], limite: int | None) -> dict[str, list[str]]:
+    """Trunca a enumeração pro total pedido, preservando a ordem das abas —
+    só pra validar rápido (`--limit`) antes de rodar tudo."""
+    if limite is None:
+        return enumeracao
+    limitada: dict[str, list[str]] = {}
+    restante = limite
+    for chave, ids in enumeracao.items():
+        limitada[chave] = ids[:restante] if restante > 0 else []
+        restante -= len(limitada[chave])
+    return limitada
+
+
+def executar_regularize(cnpj: str, config: dict, limite: int | None = None) -> None:
+    escolhido = _escolher_certificado_ou_sair(config)
     if escolhido is None:
         return
 
@@ -35,9 +56,24 @@ def executar_regularize(cnpj: str, config: dict) -> None:
         Path("artifacts/traces") / f"regularize_{ddmmyyyy}-{hhmm}.jsonl"
     )
 
-    driver, politica_aplicada = fluxo.abrir_navegador_com_certificado(escolhido, config)
+    # FASE 1 (login + troca de perfil) é sempre manual, num navegador
+    # visível — ao confirmar, capturamos os cookies da sessão e fechamos
+    # este navegador; FASE 2/3 rodam num segundo navegador, headless, com
+    # a sessão herdada via cookies (ver RUNBOOK.md).
+    driver_manual, politica_aplicada = fluxo.abrir_navegador_com_certificado(
+        escolhido, config, headless=False
+    )
     try:
-        regularize.autenticar_e_trocar_perfil(driver, cnpj, timeout_s, logger)
+        cookies = regularize.autenticar_e_trocar_perfil(driver_manual, cnpj, timeout_s, logger)
+    finally:
+        driver_manual.quit()
+        if politica_aplicada:
+            fluxo._remover_selecao_automatica()
+
+    driver = fluxo.abrir_navegador_com_cookies(cookies, config)
+    try:
+        regularize.confirmar_sessao_headless_autenticada(driver, timeout_s, logger)
+        regularize.entrar_no_regularize_via_ecac(driver, timeout_s, logger)
 
         caminho_consolidado = regularize.gerar_relatorio_consolidado(
             driver, cnpj, timeout_s, logger
@@ -45,15 +81,15 @@ def executar_regularize(cnpj: str, config: dict) -> None:
         print(f"Relatório consolidado: {caminho_consolidado}")
 
         enumeracao = regularize.enumerar_inscricoes(driver, timeout_s, logger)
+        enumeracao = _limitar_enumeracao(enumeracao, limite)
+        if limite is not None:
+            print(f"--limit {limite}: gerando no máximo {limite} relatório(s) detalhado(s).")
         caminhos = regularize.gerar_relatorios_detalhados(
             driver, enumeracao, cnpj, timeout_s, logger
         )
         print(f"Relatórios detalhados gerados: {len(caminhos)}")
     finally:
-        input("Pressione Enter para fechar o navegador...")
         driver.quit()
-        if politica_aplicada:
-            fluxo._remover_selecao_automatica()
         logger.fechar()
 
 
@@ -64,15 +100,22 @@ def main() -> None:
         metavar="CNPJ",
         help="Gera os relatórios de dívida ativa no Regularize para o CNPJ informado.",
     )
+    parser.add_argument(
+        "--limit",
+        metavar="N",
+        type=int,
+        default=None,
+        help="Gera no máximo N relatórios detalhados — útil pra validar antes de rodar tudo.",
+    )
     args = parser.parse_args()
 
     config = carregar_config()
 
     if args.regularize:
-        executar_regularize(args.regularize, config)
+        executar_regularize(args.regularize, config, limite=args.limit)
         return
 
-    escolhido = _escolher_certificado_ou_sair()
+    escolhido = _escolher_certificado_ou_sair(config)
     if escolhido is None:
         return
     fluxo.abrir_navegador(escolhido, config)

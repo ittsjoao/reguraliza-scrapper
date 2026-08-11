@@ -160,18 +160,23 @@ def salvar_pdf(driver, caminho: Path, logger: Logger) -> None:
     logger.log("pdf_salvo", caminho=str(caminho), bytes=len(dados))
 
 
-def autenticar_e_trocar_perfil(driver, cnpj: str, timeout_s: float, logger: Logger) -> None:
+def autenticar_e_trocar_perfil(driver, cnpj: str, timeout_s: float, logger: Logger) -> list[dict]:
     """FASE 1 — inteiramente manual, de propósito: o login automático por
     certificado (fluxo._logar_via_govbr) tem uma corrida (o click no
     certificado pode não terminar o handshake antes do próximo passo) e a
     troca de perfil no e-CAC é bloqueada pela Receita quando automatizada
     (ver RUNBOOK.md). Em vez de tentar automatizar e falhar dos dois
-    jeitos, abre uma aba em branco e deixa o operador fazer tudo à mão."""
-    driver.switch_to.new_window("tab")
-    logger.log("aba_em_branco_aberta")
+    jeitos, usa a aba padrão (já aberta em branco por
+    fluxo.abrir_navegador_com_certificado) e deixa o operador fazer tudo à
+    mão — sem abrir uma segunda aba em branco desnecessária.
 
+    Depois de confirmado, captura os cookies da sessão (`driver.
+    get_cookies()`) e os retorna — quem chamar fecha este driver e abre um
+    novo, headless, com `fluxo.abrir_navegador_com_cookies` (ver
+    RUNBOOK.md). Esta função NÃO navega mais pro Regularize; isso agora é
+    responsabilidade de quem chamar, no driver headless."""
     print(
-        "\nAba em branco aberta. Faça manualmente, no seu ritmo:\n"
+        "\nAba padrão pronta. Faça manualmente, no seu ritmo:\n"
         f"  1. Vá para {selectors.URL_GOV_BR} → Entrar → Seu certificado digital "
         "(resolva o captcha se aparecer).\n"
         f"  2. Abra {selectors.URL_ECAC} numa aba.\n"
@@ -206,7 +211,24 @@ def autenticar_e_trocar_perfil(driver, cnpj: str, timeout_s: float, logger: Logg
             detalhe=f"CNPJ {cnpj} não aparece no texto da página do e-CAC após a troca de perfil — confira manualmente.",
         )
 
-    entrar_no_regularize_via_ecac(driver, timeout_s, logger)
+    cookies = driver.get_cookies()
+    logger.log("cookies_capturados", total=len(cookies))
+    return cookies
+
+
+def confirmar_sessao_headless_autenticada(driver, timeout_s: float, logger: Logger) -> None:
+    """Confere se a sessão herdada via cookies (ver RUNBOOK.md) realmente
+    autenticou antes de seguir — sem isso, uma sessão expirada/presa a
+    outro IP geraria relatórios vazios ou tela de login em vez de PDFs."""
+    try:
+        esperar_elemento(driver, By.XPATH, selectors.XPATH_BTN_ALTERAR_PERFIL_ECAC, timeout_s)
+    except TimeoutException as erro:
+        raise RuntimeError(
+            "Sessão headless não autenticou depois de injetar os cookies — "
+            "capturados agora mesmo na FASE 1, mas podem já ter expirado ou "
+            "estar presos a outro IP (cookies TS*, ver RUNBOOK.md)."
+        ) from erro
+    logger.log("sessao_headless_autenticada")
 
 
 def entrar_no_regularize_via_ecac(driver, timeout_s: float, logger: Logger) -> None:

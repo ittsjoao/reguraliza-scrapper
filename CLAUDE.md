@@ -1,5 +1,11 @@
 # Contexto do projeto — bot e-CAC (certificado digital) + relatórios Regularize (PGFN)
 
+**Leitura obrigatória no início de toda conversa:** `CLAUDE.md` (este
+arquivo), `RUNBOOK.md` e `SPEC.md`. **Atualização obrigatória a cada
+mudança:** qualquer alteração de comportamento, fluxo ou descoberta nova
+sobre o site deve ser refletida nesses três arquivos antes de considerar a
+mudança concluída — não deixar a documentação dessincronizar do código.
+
 Robô em Python + Selenium (`undetected-chromedriver`, para reduzir captcha/
 bot-detection do gov.br) para autenticar com certificado digital A1
 instalado no Windows, e a partir daí gerar os relatórios de dívida ativa
@@ -12,12 +18,16 @@ no portal Regularize (PGFN). Dois modos, via `src/main.py`:
   (https://cav.receita.fazenda.gov.br/ecac/) numa aba nova, já autenticado
   pela sessão SSO. Deixa o navegador aberto pro usuário continuar
   manualmente.
-- `python -m src.main --regularize <CNPJ>` — FASE 1 (login gov.br + e-CAC +
-  troca de perfil de acesso pro CNPJ) é **sempre manual**, ver
-  `src/regularize.py` e `RUNBOOK.md`; a partir daí automatiza a geração do
-  Relatório Consolidado e dos Relatórios Detalhados por inscrição (ver
-  `prompt.md` pra especificação original e `SPEC.md`/`RUNBOOK.md` pro que
-  foi confirmado/corrigido ao vivo). PDFs em
+- `python -m src.main --regularize <CNPJ> [--limit N]` — FASE 1 (login
+  gov.br + e-CAC + troca de perfil de acesso pro CNPJ) é **sempre
+  manual**, num navegador visível; ao confirmar, o robô captura os
+  cookies da sessão, fecha esse navegador e abre um segundo, headless,
+  com a sessão herdada via cookies — é nesse segundo navegador que roda
+  o resto (Relatório Consolidado e Relatórios Detalhados por inscrição).
+  Ver `src/regularize.py` e `RUNBOOK.md` (seção "sessão headless via
+  cookies") pro porquê e os riscos conhecidos; `prompt.md`/`SPEC.md` pra
+  especificação original. `--limit N` trunca os relatórios detalhados
+  gerados na FASE 3 (útil pra validar antes de rodar tudo). PDFs em
   `./output/{cnpj_digits}/{DDMMYYYY}/`, log estruturado em
   `artifacts/traces/regularize_*.jsonl`.
 
@@ -26,12 +36,16 @@ no portal Regularize (PGFN). Dois modos, via `src/main.py`:
 - `src/selectors.py` — único lugar com seletores CSS/XPath do site (login
   via gov.br + e-CAC + Regularize).
 - `src/fluxo.py` — listar certificados, escolher via terminal, abrir
-  navegador (com ou sem login automático via gov.br já embutido).
+  navegador (com ou sem login automático via gov.br já embutido) e
+  `abrir_navegador_com_cookies` (headless, injeta cookies de uma sessão
+  já autenticada — ver RUNBOOK.md).
 - `src/regularize.py` — geração dos relatórios do Regularize: troca de
-  perfil manual (FASE 1), Relatório Consolidado (FASE 2), enumeração +
-  Relatórios Detalhados por inscrição (FASE 3). Logger estruturado
-  (`Logger.log`) e todas as esperas/cliques do módulo — nenhum seletor
-  literal aqui, sempre de `selectors.py`.
+  perfil manual (FASE 1, retorna os cookies da sessão pro chamador),
+  Relatório Consolidado (FASE 2), enumeração + Relatórios Detalhados por
+  inscrição (FASE 3) — estas duas últimas rodam no navegador headless
+  aberto com os cookies da FASE 1. Logger estruturado (`Logger.log`) e
+  todas as esperas/cliques do módulo — nenhum seletor literal aqui,
+  sempre de `selectors.py`.
 - `src/main.py` — entrypoint, escolhe entre o fluxo e-CAC simples e o
   `--regularize <CNPJ>`.
 - `config.yaml` — o que o usuário ajusta (URL de destino, headless,
@@ -103,13 +117,24 @@ no portal Regularize (PGFN). Dois modos, via `src/main.py`:
   Sao_Paulo")` (usado pros nomes de arquivo/timestamps do Regularize) dá
   `ZoneInfoNotFoundError` no Windows sem ele — a stdlib não traz o banco
   IANA nessa plataforma.
-- **FASE 1 do fluxo Regularize é sempre manual — nunca automatizar.** Login
-  por certificado automático tem uma corrida (pode seguir antes do
-  handshake terminar) e a troca de "perfil de acesso" no e-CAC é
-  **bloqueada pela Receita como acesso automatizado** quando feita via
-  Selenium — confirmado ao vivo, sem workaround conhecido (ver
-  `RUNBOOK.md`). `regularize.autenticar_e_trocar_perfil` só abre uma aba em
-  branco e pausa em `input()`.
+- **FASE 1 do fluxo Regularize é sempre manual — nunca automatizar login
+  nem o clique de troca de perfil.** Login por certificado automático tem
+  uma corrida (pode seguir antes do handshake terminar) e a troca de
+  "perfil de acesso" no e-CAC é **bloqueada pela Receita como acesso
+  automatizado** quando feita via Selenium — confirmado ao vivo, sem
+  workaround conhecido (ver `RUNBOOK.md`). `regularize.
+  autenticar_e_trocar_perfil` só abre uma aba em branco, pausa em
+  `input()` e, ao confirmar, captura `driver.get_cookies()` da sessão.
+- **A partir da FASE 2, o fluxo roda num segundo navegador headless com a
+  sessão herdada via cookies (`fluxo.abrir_navegador_com_cookies`) —
+  não é o mesmo navegador da FASE 1.** Isso não automatiza login nem
+  troca de perfil (continuam manuais, feitos por um humano no navegador
+  #1); só reaproveita a sessão já autenticada. Confirmado ao vivo em
+  2026-08-11 (`teste_cookies_headless.py`). Risco conhecido sem
+  workaround: os cookies `TS*` (F5 BIG-IP) prendem o IP de origem — só
+  funciona rodando da mesma rede de onde a FASE 1 manual aconteceu, e são
+  cookies de sessão (expiram), então a FASE 1 manual se repete a cada
+  execução. Ver `RUNBOOK.md` pra arquitetura completa.
 - **Nunca clicar no botão "Imprimir"** do Regularize — dispara
   `window.print()` nativo, que abre uma aba `chrome://print/` e bloqueia a
   aba original via JS até ela ser fechada. PDF sempre via CDP

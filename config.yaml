@@ -2,6 +2,9 @@ navegador:
   headless: false
   timeout_ms: 60000
 
+certificado:
+  cn_padrao: "VICTOR HUGO SOUZA MEDEIROS"
+
 destino:
   url: "https://cav.receita.fazenda.gov.br/ecac/"
 
