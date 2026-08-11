@@ -1,0 +1,12 @@
+.env
+__pycache__/
+*.pyc
+.venv/
+artifacts/traces/*.zip
+artifacts/screenshots/*.png
+docs/
+output/
+.omc/
+.claude/
+*.jsonl
+*.png

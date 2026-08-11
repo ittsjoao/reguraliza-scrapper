@@ -1,0 +1,5 @@
+undetected-chromedriver
+setuptools
+questionary
+pyyaml
+tzdata

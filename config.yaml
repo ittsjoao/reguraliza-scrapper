@@ -1,0 +1,10 @@
+navegador:
+  headless: false
+  timeout_ms: 60000
+
+destino:
+  url: "https://cav.receita.fazenda.gov.br/ecac/"
+
+artefatos:
+  traces: artifacts/traces
+  screenshots: artifacts/screenshots
