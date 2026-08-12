@@ -1,5 +1,5 @@
 navegador:
-  headless: false
+  headless: true
   timeout_ms: 60000
 
 certificado:

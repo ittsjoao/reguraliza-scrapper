@@ -304,7 +304,9 @@ def abrir_navegador_com_cookies(cookies: list[dict], config: dict):
 
     timeout_s = config["navegador"]["timeout_ms"] / 1000
     options = uc.ChromeOptions()
-    options.add_argument("--headless=new")
+    # ponytail: headless=False fixo aqui — pedido explícito pra ver a FASE
+    # 2+ (Regularize/SISPAR/CAPAG) rodando na tela durante o desenvolvimento
+    # da nova feature.
 
     driver = uc.Chrome(options=options, version_main=_versao_major_chrome())
     driver.set_page_load_timeout(timeout_s)

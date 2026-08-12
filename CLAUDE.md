@@ -42,10 +42,16 @@ no portal Regularize (PGFN). Dois modos, via `src/main.py`:
 - `src/regularize.py` — geração dos relatórios do Regularize: troca de
   perfil manual (FASE 1, retorna os cookies da sessão pro chamador),
   Relatório Consolidado (FASE 2), enumeração + Relatórios Detalhados por
-  inscrição (FASE 3) — estas duas últimas rodam no navegador headless
-  aberto com os cookies da FASE 1. Logger estruturado (`Logger.log`) e
-  todas as esperas/cliques do módulo — nenhum seletor literal aqui,
-  sempre de `selectors.py`.
+  inscrição (FASE 3), Parcelamentos via SISPAR (FASE 4) e CAPAG (FASE 5)
+  — todas rodam no segundo navegador aberto com os cookies da FASE 1
+  (`fluxo.abrir_navegador_com_cookies`, atualmente com `headless=False`
+  fixo — pedido explícito pra acompanhar visualmente a nova feature em
+  desenvolvimento; ver comentário `ponytail:` em `fluxo.py`). FASE 4/5
+  reaproveitam a mesma sessão pra entrar no SISPAR (app JSF/PrimeFaces
+  separado do Regularize, alcançado via token na URL — sem novo login/
+  troca de perfil). Logger estruturado (`Logger.log`) e todas as esperas/
+  cliques do módulo — nenhum seletor literal aqui, sempre de
+  `selectors.py`.
 - `src/main.py` — entrypoint, escolhe entre o fluxo e-CAC simples e o
   `--regularize <CNPJ>`.
 - `config.yaml` — o que o usuário ajusta (URL de destino, headless,

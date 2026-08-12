@@ -75,3 +75,54 @@ XPATH_BTN_GERAR_RELATORIO_DETALHADO = '//button[contains(., "Gerar relatório de
 IMG_EXPANDIR_DEBITO = 'img[alt="Exibir o detalhamento deste débito"]'
 
 SPINNER = "app-spinner"
+
+# --- SISPAR (PGFN) — parcelamentos e CAPAG (ver docs/imp/capag.md) ---
+# App é JSF/PrimeFaces clássico (IDs j_idt* dinâmicos entre renders) — só
+# seletores estáveis aqui: texto/classe, nunca id$=/id*= com sufixo j_idt.
+# Alcançado a partir da sessão já autenticada do Regularize (sem login/troca
+# de perfil nova — reaproveita a mesma sessão via token na URL).
+URL_SISPAR = "https://www.regularize.pgfn.gov.br/sispar/sisparnet"
+# confirmado ao vivo em 2026-08-11 (docs/pag_exemples/Regularize_consultar.htm
+# + home_qAYj.htm): a página embute o app Angular do simulador SISPAR
+# (outro domínio, pro-frontend-simulador-sispar.estaleiro.serpro.gov.br)
+# dentro de um <iframe id="sisparFrame"> — os cards ("CONSULTAR",
+# "SIMULAR/NEGOCIAR", "CAPACIDADE DE PAGAMENTO" etc.) vivem DENTRO desse
+# iframe, nunca no documento principal. Sempre trocar de frame
+# (EC.frame_to_be_available_and_switch_to_it) antes de procurar qualquer
+# um deles.
+IFRAME_SISPAR = "#sisparFrame"
+XPATH_CARD_CONSULTAR = '//*[contains(@class, "place-info-box-text") and normalize-space(text())="CONSULTAR"]'
+IMG_CARD_CONSULTAR = 'img[alt="base"][src*="consultar"]'
+# botão "Continuar" (dentro do mesmo iframe, na tela seguinte ao clique no
+# card) — ainda sem fixture local, texto/classe exatos não confirmados.
+XPATH_BTN_CONTINUAR_SISPAR = '//button[contains(@class, "btn-primary") and contains(normalize-space(.), "Continuar")]'
+
+# a partir daqui (nova guia, sisparInternet/*.jsf) é JSF/PrimeFaces clássico —
+# confirmado contra docs/pag_exemples/parcelamentos.htm e
+# parcelamento_consolidado.htm.
+TBODY_LISTA_PARCELAMENTOS = 'tbody[id$="idListaParcelamentos_data"]'
+TR_LINHA_PARCELAMENTO = "tr.conteudoGrid"
+XPATH_BTN_CONSULTA_PARCELAMENTO = '//*[contains(@class, "ui-button-text") and normalize-space(text())="Consulta"]'
+XPATH_BTN_RETORNAR_PARCELAMENTO = '//*[contains(@class, "ui-button-text") and normalize-space(text())="Retornar"]'
+
+# confirmado ao vivo em 2026-08-11: aviso de cookies do PGFN aparece numa
+# página nova a cada navegação (recarga completa, sem SPA) — sobrava no
+# texto extraído dos PDFs de CAPAG. "Permitir" é o botão que aceita.
+XPATH_BTN_COOKIE_PERMITIR = '//button[contains(normalize-space(.), "Permitir")] | //a[contains(normalize-space(.), "Permitir")]'
+
+# diálogo global "Aguarde / Solicitação em processamento..." do
+# PrimeFaces (confirmado contra parcelamentos.htm E
+# parcelamento_consolidado.htm) — fica no DOM sempre (display:block), só
+# a visibilidade muda durante um AJAX; mesmo padrão do app-spinner do
+# Angular. Sem esperar isso sumir, um print pode capturar essa tela.
+STATUS_AGUARDE_JSF = "#statusAguarde"
+
+FIELDSET_TOGGLEAVEL = "fieldset.ui-fieldset-toggleable"
+LEGENDA_FIELDSET = ".ui-fieldset-legend"
+TOGGLER_COLAPSADO = ".ui-fieldset-toggler.ui-icon-plusthick"
+
+# CAPAG — sem fixture local (docs/imp/capag.md descreve, não há .htm salvo);
+# validar contra a página real antes de confiar cegamente.
+URL_SISPAR_CAPAG = "https://sisparnet.pgfn.fazenda.gov.br/sisparInternet/consultarCapag.jsf"
+XPATH_BTN_PESQUISAR_CAPAG = '//*[contains(@class, "ui-button-text") and normalize-space(text())="Pesquisar"]'
+TEXTO_LEGENDA_CAPAG_VALORES = "Valores para cálculo da capacidade de pagamento individual"

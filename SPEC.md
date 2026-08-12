@@ -46,10 +46,22 @@ vivo que corrigiram o que estava documentado ali.
    PDF detalhado por inscrição, re-navegando a cada uma. Loga cada
    elemento clicado e valida a contagem final de PDFs gerados contra o
    total de inscrições enumeradas (checkpoint 3).
-4. Toda ação fica logada em `artifacts/traces/regularize_*.jsonl`
+4. **FASE 4 — Parcelamentos (SISPAR).** No mesmo navegador da FASE 2+ (a
+   sessão do Regularize já autenticado dá acesso ao SISPAR via token na
+   URL — sem novo login/troca de perfil), coleta a lista de negociações
+   solicitadas e gera um PDF por parcelamento (`PARCELAMENTO-{numero}.pdf`),
+   expandindo todos os `fieldset.ui-fieldset-toggleable` (aguarda o
+   placeholder AJAX "Consultando X..." ser substituído, nunca sleep fixo).
+   Erro num parcelamento não aborta o lote — loga e segue pro próximo. Ver
+   `docs/imp/capag.md` para a especificação original.
+5. **FASE 5 — CAPAG.** Consulta a capacidade de pagamento individual e
+   salva `CAPAG_{DDMMYYYY}-{HHMM}.pdf`; se a consulta vier indisponível
+   (ex.: contribuinte omisso), captura o texto de indisponibilidade mesmo
+   assim, sem quebrar o fluxo.
+6. Toda ação fica logada em `artifacts/traces/regularize_*.jsonl`
    (estruturado, um evento por linha) — inclui divergências, não só
    sucesso.
-5. PDFs saem em `./output/{cnpj_digits}/{DDMMYYYY}/`.
+7. PDFs saem em `./output/{cnpj_digits}/{DDMMYYYY}/`.
 
 ## Fora de escopo (por ora)
 

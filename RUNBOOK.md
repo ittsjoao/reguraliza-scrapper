@@ -239,8 +239,36 @@ resto do fluxo.
   fluxo (PDFs) numa janela visível.
 - `config.navegador.headless` agora só afeta o fluxo simples de
   `python -m src.main` (sem `--regularize`) — no fluxo Regularize os dois
-  navegadores têm headless fixo (visível no #1, headless no #2),
-  independente do que estiver no `config.yaml`.
+  navegadores têm headless fixo, independente do que estiver no
+  `config.yaml`: visível no #1 (sempre foi) e, **a partir de 2026-08-11,
+  também visível no #2** (`fluxo.abrir_navegador_com_cookies`) — mudança
+  deliberada pra acompanhar visualmente a FASE 4/5 (SISPAR/CAPAG,
+  recém-implementadas, ver seção abaixo) enquanto validamos ao vivo. Se
+  quiser headless de volta no #2 pra uso normal depois de validado, reverta
+  o comentário `ponytail:` em `abrir_navegador_com_cookies`.
+
+**`--aguardar-sinal`** (`main.py`, não usar em produção): troca o `input()`
+da FASE 1 por uma espera pelo arquivo `artifacts/continuar_fase1.flag` —
+necessário quando quem inicia o processo não tem stdin interativo de
+verdade pra receber o Enter (ex.: `/rodar-regularize`, ver
+`.claude/commands/rodar-regularize.md`). **Não é detecção automática pela
+página** — alguém cria esse arquivo manualmente (ou pede pro Claude criar)
+só depois de confirmar a troca de perfil de verdade. Login e troca de
+perfil continuam 100% manuais nos dois casos (`--aguardar-sinal` ou não) —
+só muda como o código é avisado que o operador terminou.
+
+⚠️ **Risco real, já aconteceu em produção (2026-08-11)**: quem estiver
+acompanhando o chat (ex.: Claude via `/rodar-regularize`) só deve criar o
+arquivo de sinal depois de o operador confirmar EXPLICITAMENTE que a
+troca de perfil terminou — uma confirmação ambígua ("siga", sem
+contexto) levou a criar o sinal cedo demais, com o perfil ainda no
+CNPJ/CPF anterior. O processo não trava nem avisa alto: só loga
+`perfil_confirmado` com `encontrado_na_pagina: false` e segue adiante,
+gerando relatórios pro perfil ERRADO (confirmado ao vivo: SISPAR saiu
+com 0 parcelamentos e o CAPAG saiu com a fórmula de pessoa física em vez
+da empresa). **Sempre conferir esse campo no trace logo depois de criar o
+sinal** — se vier `false`, avisar e não confiar nos PDFs daquela
+execução.
 
 **`--limit N`** (`python -m src.main --regularize <CNPJ> --limit N`) trunca
 a quantidade de relatórios detalhados gerados na FASE 3, preservando a
@@ -310,6 +338,196 @@ Esse valor vira o `timeout_s` de toda espera em `regularize.py`
 o timeout total por tentativa de relatório detalhado via `_com_timeout` é
 `timeout_s * 2`). Se voltar a dar timeout num relatório com muitos
 débitos/inscrições, suba mais antes de investigar outra causa.
+
+## SISPAR (parcelamentos) / CAPAG — implementado e validado ao vivo
+
+Implementado em 2026-08-11 a partir de `docs/imp/capag.md`, seguindo o
+padrão de `regularize.py` (Logger, `_clicar`, `esperar_elemento`,
+`salvar_pdf`). Levou várias rodadas de execução real (login manual +
+`--aguardar-sinal`, ver seção logo abaixo) até fechar de vez — histórico
+completo abaixo, útil se algo parecido quebrar de novo no futuro (ex.:
+o site mudando). Estado atual, confirmado ao vivo em 2026-08-11 abrindo
+os PDFs gerados (não só olhando o log):
+
+- `checkpoint_sispar_ok total=8` — todos os parcelamentos, nome do
+  arquivo batendo com o conteúdo.
+- `checkpoint_capag_ok` — sem aviso de cookies, sem diálogo de
+  "processamento" sobrando, com o texto real (inclusive o caso "omisso").
+
+**Bug de layout achado depois, comparando screenshot do PDF salvo com a
+página real (2026-08-11)**: as tabelas do PARCELAMENTO (Pagamentos,
+Prestações, Créditos Informados) são mais largas que o papel padrão do
+`Page.printToPDF` (Letter, 8.5"x11") — colunas da direita (`Encargos/
+Honorários`, `Total`, etc.) ficavam cortadas fora da página. `checkpoint_
+sispar_ok`/`checkpoint_capag_ok` e a conferência de texto (cookie/
+processamento/nome-bate-com-conteúdo) não pegam isso — é um corte visual
+de LARGURA, não de conteúdo ausente no texto. Corrigido: `salvar_pdf`
+agora aceita `**opcoes_impressao` repassadas pro CDP `Page.printToPDF`;
+os saves de `PARCELAMENTO-*.pdf` e `CAPAG_*.pdf` usam
+`paperWidth=17, paperHeight=11` (o dobro da largura padrão) — os saves do
+Regularize (Consolidado/Detalhado) continuam sem opção nenhuma,
+inalterados, porque nunca teve esse problema relatado.
+
+**RESOLVIDO — confirmado ao vivo (2026-08-11)**: `mediabox` do PDF
+confere 17"x11" de verdade (não só o parâmetro passado), e a tabela mais
+larga observada (Débitos, mesma classe de largura das que cortavam)
+saiu com todas as colunas, incluindo `Encargos/Honorários` e `Valor
+Total`. Se ainda cortar algo no futuro (tabela ainda mais larga), subir
+`paperWidth` mais antes de investigar outra causa.
+
+Se voltar a falhar (o site pode mudar), comece por aqui, na ordem de risco:
+
+- **`/sispar/sisparnet` embute o simulador SISPAR (outro domínio,
+  `pro-frontend-simulador-sispar.estaleiro.serpro.gov.br`) dentro de um
+  `<iframe id="sisparFrame">` — confirmado ao vivo em 2026-08-11
+  (`docs/pag_exemples/Regularize_consultar.htm` +
+  `Regularize_consultar_files/home_qAYj.htm`, esta última é a cópia do
+  DOM do iframe salva separadamente pelo Chrome).** `regularize.
+  ir_para_sispar` já corrigido: usa `EC.frame_to_be_available_and_switch_to_it`
+  antes de procurar o card. `selectors.XPATH_CARD_CONSULTAR` (`.place-info-box-text`
+  == "CONSULTAR") e `IMG_CARD_CONSULTAR` estão confirmados contra o
+  `home_qAYj.htm` real — se voltar a não achar o elemento, confira
+  primeiro se o `driver` está mesmo dentro do iframe (`driver.
+  switch_to.default_content()` seguido de nova troca de frame) antes de
+  suspeitar do texto/classe.
+- ~~`selectors.XPATH_BTN_CONTINUAR_SISPAR`~~ — confirmado ao vivo em
+  2026-08-11 (`python -m src.main --regularize 17462219000105 --limit 1`):
+  card → Continuar → nova aba em
+  `sisparInternet/autenticacao.jsf?token=...&simulador=true` funcionou.
+  `coletar_parcelamentos` também confirmado: 8 parcelamentos, mesmos
+  números do `parcelamentos.htm` (140463, 355617, 1556844, 1590391,
+  1556494, 6756347, 6782840, 6816837).
+- **SISPAR/parcelamentos — RESOLVIDO e confirmado ao vivo (2026-08-11,
+  5ª execução): `checkpoint_sispar_ok total=8`, 8/8 PDFs, zero
+  `DIVERGENCIA`.** Também confirmado abrindo cada um dos 8 PDFs: nome do
+  arquivo bate com o número da negociação no conteúdo (o descompasso
+  nome/conteúdo relatado abaixo não aconteceu mais nenhuma vez). Histórico
+  completo do bug, pra quem for investigar algo parecido no futuro:
+  linha/botão "Consulta", **reproduzido de forma IDÊNTICA em 3 execuções
+  reais separadas** — sempre falham os mesmos 7 de 8 parcelamentos (todos
+  exceto o último da lista, `6816837`), na mesma ordem, mesmo com:
+  (1) retry de 3 tentativas re-buscando a linha do zero a cada uma; (2)
+  `gerar_relatorios_parcelamentos` em 2 rodadas, dando tempo real (~25s)
+  entre a 1ª e a 2ª tentativa dos mesmos itens — **e falhou igual nas
+  duas rodadas**, o que descarta de vez a hipótese de "instabilidade
+  inicial que passa com tempo" (`countDown()` etc.) — é determinístico
+  por item, não uma race que tempo/retry resolve. Aplicada uma 3ª
+  correção: `_botao_consulta_habilitado` reconsultava o elemento a cada
+  poll do `WebDriverWait`, mas SEM capturar `StaleElementReferenceException`
+  gerada dentro do próprio poll (entre `find_elements` e `get_attribute`
+  na mesma chamada) — WebDriverWait não re-tenta esse erro por padrão
+  (mesma lacuna já documentada e corrigida antes em
+  `fluxo._clicavel_no_shadow`, só não tinha sido replicada aqui).
+  Adicionado também log granular (`stale na etapa '<nome>'...`) pra, se
+  isso ainda não bastar, a próxima falha apontar exatamente qual linha de
+  código (localizar linha / clicar linha / esperar botão / clicar botão)
+  está estourando.
+
+  **O log granular (4ª execução) finalmente apontou o ponto exato: sempre
+  na etapa `clicar_botao_consulta`, nunca na espera.** O elemento fica
+  stale bem na janela entre o comando de CLIQUE do Selenium (`find` +
+  `click` são 2 comandos WebDriver separados, com round-trip no meio) e o
+  navegador executar — por isso nem tempo nem retry por fora dessa janela
+  ajudavam, a mesma janela reabre a cada tentativa. Corrigido com
+  `_clicar_via_js_xpath`: localiza E clica numa ÚNICA chamada
+  `execute_script` (via `document.evaluate` + `.click()`), sem round-trip
+  nenhum entre os dois — usado só nesse ponto específico, não em todo
+  clique do módulo. **Confirmado que resolveu (5ª execução, ver acima).**
+
+  Achado extra que veio de bônus: numa execução em que só o último item
+  "funcionava" (antes do fix), o PDF `PARCELAMENTO-6816837.pdf` continha
+  o conteúdo do parcelamento **6782840** (o item anterior) — nome do
+  arquivo não batia com o conteúdo (suspeita: a seleção de linha do item
+  anterior, que falhava do nosso lado, registrava no servidor mesmo
+  assim). **Esse descompasso não voltou a acontecer** depois do fix do
+  clique atômico — confirmado abrindo os 8 PDFs da execução de sucesso.
+- **CAPAG — bug real encontrado e corrigido (2026-08-11), confirmado ao
+  vivo depois do fix (checkpoint_capag_ok)**, causa confirmada contra
+  `docs/pag_exemples/capagPesquisa.htm`: o fieldset "Valores para
+  cálculo da capacidade de pagamento individual" fica ANINHADO dentro de
+  outro fieldset não-toggleable ("Capacidade de Pagamento"). O XPath
+  antigo (`//fieldset[.//legend[contains(...)]]`) casava os DOIS (o
+  ancestral também "contém" a legend como descendente) e, em ordem de
+  documento, `find_element` retornava o fieldset EXTERNO — sem toggler,
+  clique sem efeito nenhum, daí o `TimeoutException` esperando o ícone
+  mudar. Corrigido selecionando direto por `.ui-fieldset-toggleable`
+  (confirmado: só existe UM elemento com essa classe na página inteira —
+  não precisa de XPath ancestral pra achar a legend certa). Esse fixture
+  também é o exemplo real do caso "omisso" do `capag.md`: "A consulta a
+  esses dados não está disponível em razão do enquadramento na situação
+  de omisso." — captura normalmente, sem quebrar o fluxo.
+- **CAPAG — 2 bugs de conteúdo confirmados abrindo o PDF gerado, não só
+  conferindo se `checkpoint_capag_ok` apareceu (2026-08-11)**:
+  1. Aviso de cookies do PGFN ("Para melhorar a sua experiência...
+     Permitir Rejeitar") sobrava no texto extraído do PDF — a página é
+     JSF com recarga completa a cada navegação (sem SPA), então o aviso
+     pode reaparecer em qualquer página nova. Corrigido com
+     `regularize._dispensar_aviso_cookies` (clica em "Permitir" se
+     visível, melhor esforço, nunca quebra o fluxo se não achar) —
+     chamado antes de cada `salvar_pdf` do SISPAR/CAPAG.
+  2. A frase "A consulta a esses dados não está disponível..." (conteúdo
+     real do fieldset, confirmado presente via `fieldset.text` no log)
+     **não aparecia no texto do PDF** — o ícone do fieldset virava
+     "expandido" um instante antes do navegador terminar de pintar o
+     conteúdo, e como esse caso não tem placeholder AJAX pra esperar
+     sumir, a espera existente não esperava nada de verdade. Corrigido em
+     `_expandir_um_fieldset`: espera extra até o texto do fieldset ficar
+     maior que só a legend, antes de considerar expandido.
+
+  **Revalidado ao vivo (2026-08-11, execução seguinte)**: o item 1 (aviso
+  de cookies) sumiu de vez, confirmado. O item 2 **continuou faltando**
+  mesmo com a espera por "texto maior que a legend" — esse fieldset em
+  particular é pequeno/rápido demais, o wait resolve antes do repaint
+  real acontecer. Ponytail: adicionado um reflow forçado
+  (`document.body.offsetHeight`) + `time.sleep(0.3)` fixo no final de
+  `_expandir_um_fieldset`, sem condição JS confiável encontrada pra
+  esperar "terminou de pintar" de verdade.
+
+  **Causa raiz de verdade, achada quando o usuário reportou "Solicitação
+  em processamento..." aparecendo na tela de alguns relatórios**: as
+  páginas JSF do SISPAR/CAPAG têm o MESMO padrão do `app-spinner` do
+  Angular — `#statusAguarde` ("Aguarde / Solicitação em processamento...",
+  confirmado em `parcelamentos.htm` E `parcelamento_consolidado.htm`)
+  fica no DOM sempre (`display:block`), só a visibilidade muda durante um
+  AJAX. Nenhum dos waits anteriores (ícone, regex, texto-maior-que-legend,
+  animações, reflow+sleep) checava isso — o código podia perfeitamente
+  imprimir com esse diálogo ainda visível. Adicionado
+  `regularize.esperar_aguarde_jsf_sumir` (mesmo padrão de
+  `esperar_spinner_sumir`) chamado: (1) dentro de
+  `_expandir_um_fieldset`, logo após o clique na legend; (2) depois do
+  clique em "Consulta" (antes de expandir os fieldsets do parcelamento);
+  (3) depois do clique em "Pesquisar" do CAPAG; (4) bem antes de cada
+  `salvar_pdf` do SISPAR/CAPAG, como rede de segurança final.
+
+  **RESOLVIDO — confirmado ao vivo (2026-08-11, execução seguinte), abrindo
+  os PDFs de verdade, não só o log**: os 8 `PARCELAMENTO-*.pdf` e o
+  `CAPAG_*.pdf` saíram sem "processamento" (aguarde), sem aviso de
+  cookies, com a frase do "omisso" presente, e nome batendo com conteúdo
+  em todos. `checkpoint_sispar_ok total=8` + `checkpoint_capag_ok`. SISPAR
+  e CAPAG estão funcionando de ponta a ponta.
+- `selectors.TOGGLER_COLAPSADO` (`.ui-fieldset-toggler.ui-icon-plusthick`)
+  assume o padrão clássico do PrimeFaces (ícone alterna plusthick/
+  minusthick) — confirmado contra `parcelamento_consolidado.htm` E
+  `capagPesquisa.htm`, os dois batem.
+- `regularize._REGEX_CARREGANDO` (`r"Consultando\b.*\.\.\."`) casa com os
+  4 placeholders vistos na fixture ("Consultando créditos informados...",
+  "pagamentos...", "Prestações...", "ocorrências...") — se a página real
+  tiver um placeholder com texto diferente, a espera ainda funciona (só
+  não vai encontrar o padrão e resolve na hora), mas pode não estar
+  esperando o AJAX real terminar.
+- `selectors.TR_LINHA_PARCELAMENTO` (`tr.conteudoGrid`) e a extração das 7
+  colunas em `coletar_parcelamentos` assumem a ordem exata de
+  `parcelamentos.htm` (Vinculação, Negociações, Modalidade, Número da
+  Conta, Situação, Data Adesão, Valor Consolidado) — se a ordem mudar
+  entre CPF/CNPJ com múltiplos grupos (`grupoCpfCnpj:0`, `:1`, ...), pode
+  ser necessário também iterar sobre múltiplos `tbody` em vez de um só.
+
+**Como validar**: `python -m src.main --regularize <CNPJ> --limit 1`, num
+terminal interativo de verdade (não via automação/CI) — `--limit 1` já
+reduz a FASE 3 ao mínimo (mas a FASE 2, consolidado, sempre roda);
+acompanhe `artifacts/traces/regularize_*.jsonl` em outro shell. Checagem
+de sucesso: nº de parcelamentos coletados == nº de `PARCELAMENTO-*.pdf`
+gerados (evento `checkpoint_sispar_ok`), e `checkpoint_capag_ok` presente.
 
 ## `zoneinfo`/`America/Sao_Paulo` falha no Windows sem `tzdata`
 
