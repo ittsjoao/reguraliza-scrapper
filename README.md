@@ -47,21 +47,30 @@ Pra testar localmente sem instalar:
 claude --plugin-dir .
 ```
 
-Pra deixar carregado automaticamente em toda sessão, copie (ou linke) esta
-pasta pra dentro de `~/.claude/skills/`:
+Pra deixar carregado automaticamente em toda sessão, clone (não copie —
+`cp -r` congela numa foto e nunca mais atualiza) esta pasta pra dentro de
+`~/.claude/skills/`:
 ```
-cp -r . ~/.claude/skills/ecac-regularize
+git clone https://github.com/ittsjoao/reguraliza-scrapper.git ~/.claude/skills/ecac-regularize
 ```
 Na próxima sessão o Claude Code carrega como `ecac-regularize@skills-dir`
-— sem marketplace, sem passo de instalação.
+— sem marketplace, sem passo de instalação. Pra atualizar depois (em
+qualquer máquina onde já esteja instalado):
+```
+git -C ~/.claude/skills/ecac-regularize pull
+```
 
-Com o plugin carregado, dois skills ficam disponíveis:
+Com o plugin carregado, ficam disponíveis:
 
 - `/ecac-regularize:gerar-relatorio-regularize <CNPJ> [--limit N]` — ou
   simplesmente peça em linguagem natural ("gera o relatório da PGFN pro
   CNPJ 17462219000105"); o Claude reconhece e invoca sozinho.
 - `/ecac-regularize:abrir-ecac` — só abre o e-CAC autenticado, sem gerar
   relatório.
+- `/ecac-regularize:rodar-regularize <CNPJ>` — roda o fluxo completo em
+  background sem depender de `input()` interativo (usa `--aguardar-sinal`).
+- `/ecac-regularize:atualizar-repo` — sincroniza este repositório com
+  `origin/main` (`git pull --ff-only` se estiver limpo).
 
 A instrução completa de como o Claude deve operar cada fluxo (o que pode
 automatizar, o que é sempre manual, onde ficam os outputs, como
