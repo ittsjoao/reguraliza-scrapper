@@ -6,9 +6,12 @@ Rode o fluxo completo do Regularize (Relatório Consolidado, Relatórios Detalha
 Parcelamentos/SISPAR, CAPAG) para o CNPJ `$ARGUMENTS`, sem depender de `input()`
 num terminal interativo. Siga exatamente estes passos, nesta ordem:
 
-1. **Antes de rodar**: se `artifacts/continuar_fase1.flag` já existir de uma
-   execução anterior, apague-o — senão o processo nem chega a esperar.
-2. **Inicie em background** (`run_in_background: true`):
+1. **Antes de rodar**: `cd "${CLAUDE_PLUGIN_ROOT}"` (garante que roda na
+   pasta certa, mesmo invocado de dentro de outro projeto). Se
+   `artifacts/continuar_fase1.flag` já existir de uma execução anterior,
+   apague-o — senão o processo nem chega a esperar.
+2. **Inicie em background** (`run_in_background: true`, no mesmo diretório
+   do passo 1):
    `python -m src.main --regularize <CNPJ> --aguardar-sinal` — acrescente
    `--limit 1` se o usuário não pedir a execução completa (ou se for só
    validação). `<CNPJ>` vem de `$ARGUMENTS`; se vier vazio, pergunte antes de

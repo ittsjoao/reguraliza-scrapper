@@ -42,7 +42,8 @@ alterar o fluxo.
 
 ## Uso via Claude Code (plugin)
 
-Pra testar localmente sem instalar:
+Instrução completa (voltada pra IA) em `INSTALL_SKILL.md`. Pra testar
+localmente sem instalar:
 ```
 claude --plugin-dir .
 ```
