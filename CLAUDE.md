@@ -53,6 +53,18 @@ no portal Regularize (PGFN). Dois modos, via `src/main.py`:
   `selectors.py`.
 - `src/main.py` — entrypoint, escolhe entre o fluxo e-CAC simples e o
   `--regularize <CNPJ>`.
+- `src/retry_inscricoes.py` — `python -m src.retry_inscricoes --cnpj <CNPJ>
+  --inscricoes <n1,n2,...> [--aguardar-sinal]`: reprocessa relatórios
+  detalhados só das inscrições passadas (uso: quando
+  `gerar_relatorios_detalhados` fecha com `DIVERGENCIA` "falhou ao gerar
+  relatório de ..." pra algumas poucas inscrições — geralmente
+  `stale element reference` do Selenium, intermitente). Roda FASE 1
+  (login + troca de perfil, sempre manual, igual `main.py`), depois
+  `enumerar_inscricoes` (precisa pra saber em qual aba cada inscrição
+  está) filtrada pro alvo, e só `gerar_relatorios_detalhados` — pula
+  Consolidado, SISPAR e CAPAG. Trace em
+  `artifacts/traces/regularize_retry_*.jsonl` (prefixo `retry_` pra não
+  confundir com o trace do fluxo completo).
 - `config.yaml` — o que o usuário ajusta (URL de destino, headless,
   timeout — `navegador.timeout_ms` também controla todas as esperas do
   fluxo Regularize).
