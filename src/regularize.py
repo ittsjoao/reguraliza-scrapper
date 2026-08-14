@@ -347,6 +347,9 @@ def entrar_no_regularize_via_ecac(driver, timeout_s: float, logger: Logger) -> N
     if novas:
         driver.switch_to.window(novas[0])
     esperar_carregar(driver, timeout_s)
+    WebDriverWait(driver, timeout_s).until(
+        lambda d: "regularize.pgfn.gov.br" in d.current_url
+    )
     logger.log("regularize_aberto_via_ecac", url=driver.current_url)
 
 
@@ -423,7 +426,8 @@ def gerar_relatorio_consolidado(driver, cnpj: str, timeout_s: float, logger: Log
     """FASE 2 — Relatório Consolidado (A)."""
     ir_para_consulta_dividas(driver, timeout_s, logger)
 
-    _clicar(driver, driver.find_element(By.CSS_SELECTOR, selectors.BTN_RELATORIO_CONSOLIDADO))
+    btn_relatorio = esperar_elemento(driver, By.CSS_SELECTOR, selectors.BTN_RELATORIO_CONSOLIDADO, timeout_s)
+    _clicar(driver, btn_relatorio)
     esperar_elemento(driver, By.CSS_SELECTOR, selectors.CHECK_NATUREZA_TODAS, timeout_s)
     logger.log("relatorio_consolidado_aberto", url=driver.current_url)
 

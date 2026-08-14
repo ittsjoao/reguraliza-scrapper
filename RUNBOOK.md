@@ -320,6 +320,41 @@ cliques já dava folga suficiente por acaso. Corrigido em
 silencioso) antes de clicar no próximo — não só antes de gerar o PDF no
 final.
 
+## Regularize — `NoSuchElementException` no botão "Relatório Consolidado" logo após chegar em `/consultaDividas`
+
+Confirmado ao vivo em 2026-08-14 (CNPJ 17462219000105): `esperar_spinner_sumir`
+retorna assim que nenhum `app-spinner` está mais visível, mas isso não
+garante que o Angular já terminou de renderizar o botão "Relatório
+Consolidado" (`selectors.BTN_RELATORIO_CONSOLIDADO`) — mesma classe de
+race documentada em `esperar_elemento` (routerLink não recarrega a
+página, `document.readyState` fica 'complete' antes da rota trocar de
+fato). `gerar_relatorio_consolidado` fazia `find_element` direto nesse
+botão, sem esperar por ele especificamente, e falhou com
+`NoSuchElementException` numa execução real (login e troca de perfil OK,
+sessão headless autenticada, mas o clique falhou). Corrigido trocando o
+`find_element` direto por `esperar_elemento` (mesmo padrão usado para
+`CHECK_NATUREZA_TODAS` logo abaixo) antes do clique.
+
+## Regularize — `entrar_no_regularize_via_ecac` dava por aberto um hop intermediário do SSO, não o Regularize de fato
+
+Confirmado ao vivo em 2026-08-14 (mesmo CNPJ, execução seguinte à do bug
+acima): depois de clicar em "PGFN - Todos os serviços do Regularize", o
+e-CAC abre uma nova aba que passa por um hop intermediário de SSO
+(`www2.pgfn.fazenda.gov.br/ecac/contribuinte/loginEcacReceita.jsf`) antes
+de finalmente chegar em `regularize.pgfn.gov.br`. `esperar_carregar`
+(`document.readyState == 'complete'`) dá certo já nesse hop intermediário
+— igual ao problema já documentado pra navegação Angular via routerLink,
+só que aqui é uma cadeia de redirects HTTP/JS entre domínios diferentes,
+não SPA. O código seguia adiante achando que já estava no Regularize (log
+`regularize_aberto_via_ecac` mostrou a URL do hop, não a de destino) e a
+chamada seguinte, `driver.get(URL_REGULARIZE_CONSULTA_DIVIDAS)` dentro de
+`ir_para_consulta_dividas`, travou por 60s (`TimeoutException: Timed out
+receiving message from renderer`) — provavelmente por disparar uma nova
+navegação enquanto o navegador ainda processava o redirect automático do
+hop anterior. Corrigido em `entrar_no_regularize_via_ecac`: depois de
+`esperar_carregar`, espera explicitamente `"regularize.pgfn.gov.br" in
+driver.current_url` antes de dar por concluído.
+
 ## Referência — totais reais confirmados (URB TOPO ENGENHARIA, CNPJ 17462219000105)
 
 Pra validar rapidamente se uma nova execução está batendo, sem precisar
