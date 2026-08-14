@@ -44,9 +44,8 @@ no portal Regularize (PGFN). Dois modos, via `src/main.py`:
   Relatório Consolidado (FASE 2), enumeração + Relatórios Detalhados por
   inscrição (FASE 3), Parcelamentos via SISPAR (FASE 4) e CAPAG (FASE 5)
   — todas rodam no segundo navegador aberto com os cookies da FASE 1
-  (`fluxo.abrir_navegador_com_cookies`, atualmente com `headless=False`
-  fixo — pedido explícito pra acompanhar visualmente a nova feature em
-  desenvolvimento; ver comentário `ponytail:` em `fluxo.py`). FASE 4/5
+  (`fluxo.abrir_navegador_com_cookies`, que agora respeita
+  `config.navegador.headless` igual o navegador #1). FASE 4/5
   reaproveitam a mesma sessão pra entrar no SISPAR (app JSF/PrimeFaces
   separado do Regularize, alcançado via token na URL — sem novo login/
   troca de perfil). Logger estruturado (`Logger.log`) e todas as esperas/

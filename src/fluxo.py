@@ -289,11 +289,14 @@ def abrir_navegador_com_certificado(certificado: dict, config: dict, headless: b
 
 
 def abrir_navegador_com_cookies(cookies: list[dict], config: dict):
-    """Sobe um Chrome headless sem seleção de certificado nenhuma e injeta
-    cookies de uma sessão já autenticada manualmente num outro navegador
-    (ver RUNBOOK.md, seção "sessão headless via cookies") — não repete
-    login nem clique nenhum, só reaproveita a sessão. Retorna o driver já
-    navegado (de novo) pro e-CAC; quem chamar é responsável por fechá-lo.
+    """Sobe um Chrome sem seleção de certificado nenhuma e injeta cookies de
+    uma sessão já autenticada manualmente num outro navegador (ver
+    RUNBOOK.md, seção "sessão headless via cookies") — não repete login nem
+    clique nenhum, só reaproveita a sessão. Retorna o driver já navegado (de
+    novo) pro e-CAC; quem chamar é responsável por fechá-lo.
+
+    Headless controlado por `config.navegador.headless`, igual
+    `abrir_navegador_com_certificado`.
 
     Cookies do tipo TS* (F5 BIG-IP) costumam prender o IP de origem — só
     funciona rodando da mesma rede/IP de onde os cookies foram capturados,
@@ -304,9 +307,8 @@ def abrir_navegador_com_cookies(cookies: list[dict], config: dict):
 
     timeout_s = config["navegador"]["timeout_ms"] / 1000
     options = uc.ChromeOptions()
-    # ponytail: headless=False fixo aqui — pedido explícito pra ver a FASE
-    # 2+ (Regularize/SISPAR/CAPAG) rodando na tela durante o desenvolvimento
-    # da nova feature.
+    if config["navegador"]["headless"]:
+        options.add_argument("--headless=new")
 
     driver = uc.Chrome(options=options, version_main=_versao_major_chrome())
     driver.set_page_load_timeout(timeout_s)

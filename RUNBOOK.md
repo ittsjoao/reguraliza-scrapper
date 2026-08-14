@@ -219,8 +219,8 @@ resto do fluxo.
 2. Ao confirmar, a função captura `driver.get_cookies()` da aba do e-CAC e
    retorna a lista — `main.py` fecha o navegador #1 e remove a policy de
    certificado (não é mais necessária).
-3. Abre navegador #2 (`fluxo.abrir_navegador_com_cookies`, sempre
-   headless) e injeta os cookies capturados.
+3. Abre navegador #2 (`fluxo.abrir_navegador_com_cookies`, headless
+   conforme `config.navegador.headless`) e injeta os cookies capturados.
 4. `regularize.confirmar_sessao_headless_autenticada` confere se "Alterar
    perfil de acesso" aparece antes de seguir — se não aparecer, levanta
    erro (cookies expirados ou presos a outro IP) em vez de continuar e
@@ -237,15 +237,12 @@ resto do fluxo.
   uma automação "rode a qualquer hora sem supervisão": o operador ainda
   faz login + troca de perfil toda vez, só não fica esperando o resto do
   fluxo (PDFs) numa janela visível.
-- `config.navegador.headless` agora só afeta o fluxo simples de
-  `python -m src.main` (sem `--regularize`) — no fluxo Regularize os dois
-  navegadores têm headless fixo, independente do que estiver no
-  `config.yaml`: visível no #1 (sempre foi) e, **a partir de 2026-08-11,
-  também visível no #2** (`fluxo.abrir_navegador_com_cookies`) — mudança
-  deliberada pra acompanhar visualmente a FASE 4/5 (SISPAR/CAPAG,
-  recém-implementadas, ver seção abaixo) enquanto validamos ao vivo. Se
-  quiser headless de volta no #2 pra uso normal depois de validado, reverta
-  o comentário `ponytail:` em `abrir_navegador_com_cookies`.
+- No fluxo Regularize, navegador #1 (FASE 1, login + troca de perfil) é
+  **sempre visível**, independente de `config.navegador.headless` — é
+  manual por definição (ver acima), então não faz sentido headless ali.
+  Navegador #2 (FASE 2+, `fluxo.abrir_navegador_com_cookies`) respeita
+  `config.navegador.headless` normalmente, igual o fluxo simples de
+  `python -m src.main`.
 
 **`--aguardar-sinal`** (`main.py`, não usar em produção): troca o `input()`
 da FASE 1 por uma espera pelo arquivo `artifacts/continuar_fase1.flag` —
