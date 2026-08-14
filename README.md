@@ -62,18 +62,16 @@ git -C ~/.claude/skills/ecac-regularize pull
 
 Com o plugin carregado, ficam disponíveis:
 
-- `/ecac-regularize:gerar-relatorio-regularize <CNPJ> [--limit N]` — ou
-  simplesmente peça em linguagem natural ("gera o relatório da PGFN pro
-  CNPJ 17462219000105"); o Claude reconhece e invoca sozinho.
-- `/ecac-regularize:abrir-ecac` — só abre o e-CAC autenticado, sem gerar
-  relatório.
-- `/ecac-regularize:rodar-regularize <CNPJ>` — roda o fluxo completo em
-  background sem depender de `input()` interativo (usa `--aguardar-sinal`).
+- `/ecac-regularize:rodar-regularize <CNPJ>` — roda o fluxo completo
+  (Relatório Consolidado, Detalhados, SISPAR, CAPAG) em background, sem
+  depender de `input()` interativo (usa `--aguardar-sinal`); ou peça em
+  linguagem natural ("gera o relatório da PGFN pro CNPJ 17462219000105").
 - `/ecac-regularize:atualizar-repo` — sincroniza este repositório com
   `origin/main` (`git pull --ff-only` se estiver limpo).
 
-A instrução completa de como o Claude deve operar cada fluxo (o que pode
+A instrução completa de como o Claude deve operar o fluxo (o que pode
 automatizar, o que é sempre manual, onde ficam os outputs, como
-diagnosticar falha) está nos próprios `skills/*/SKILL.md` — é isso que o
-Claude lê, não este README nem o `CLAUDE.md` (que só vale enquanto se está
-editando este repositório, não quando o plugin roda em outro projeto).
+diagnosticar falha) está no próprio `commands/rodar-regularize.md` — é
+isso que o Claude lê, não este README nem o `CLAUDE.md` (que só vale
+enquanto se está editando este repositório, não quando o plugin roda em
+outro projeto).
